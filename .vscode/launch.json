@@ -1,0 +1,30 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "cortex-debug",
+            "request": "launch",
+            "name": "Debug",
+            "servertype": "openocd",
+            "cwd": "${workspaceRoot}",
+            "preLaunchTask": "cargo build",
+            "runToMain": true,
+            "executable": "./target/thumbv7em-none-eabihf/debug/nucleo-l432kc-quickstart",
+            "device": "STM32L432KC",
+            "configFiles": [
+                "interface/stlink-v2-1.cfg",
+                "target/stm32l4x.cfg"
+            ],
+            "svdFile": "${workspaceRoot}/.vscode/STM32L4x2.svd",
+            "swoConfig": {
+                "enabled": true,
+                "cpuFrequency": 8000000,
+                "swoFrequency": 2000000,
+                "source": "probe",
+                "decoders": [
+                    { "type": "console", "label": "ITM", "port": 0 }
+                ]
+            }
+        }
+    ]
+}

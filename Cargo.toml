@@ -1,0 +1,28 @@
+[package]
+authors = ["Your Name"]
+edition = "2018"
+readme = "README.md"
+name = "nucleo-l432kc-quickstart"
+version = "0.1.0"
+
+[dependencies]
+cortex-m = "0.6.2"
+cortex-m-rt = "0.6.12"
+stm32l4xx-hal = { version = "0.5.0", features = ["rt", "stm32l4x2" ] }
+cortex-m-semihosting = "0.3.5"
+panic-halt = "0.2.0"
+panic-semihosting = "0.5.3"
+
+[dependencies.embedded-hal]
+version = "0.2.3"
+features = ["unproven"]
+
+[[bin]]
+name = "nucleo-l432kc-quickstart"
+test = false
+bench = false
+
+[profile.release]
+codegen-units = 1
+debug = true
+lto = true
