@@ -6,7 +6,7 @@
 
 * [NUCLEO-L432KC](https://www.st.com/en/evaluation-tools/nucleo-l432kc.html) STM32 Nucleo-32 development board with STM32L432KC MCU
 
-![NUCLEO-L432KC Pinout](docs/NUCLEO-L432KC.png "NUCLEO-L432KC Pinout")
+![NUCLEO-L432KC Pinout](NUCLEO-L432KC.png "NUCLEO-L432KC Pinout")
 
 * Configure udev rules for the embedded ST-Link v2-1
 
@@ -50,3 +50,7 @@ sudo apt-get install gdb-multiarch
 # workaround: the current version of the cortex-debug doesn't allow you to specify the name of the gdb executable
 sudo ln -s /usr/bin/gdb-multiarch /usr/bin/arm-none-eabi-gdb
 ```
+
+## Run and Debug
+
+Just put a breakpoint where you want it and press F5
