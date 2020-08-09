@@ -1,6 +1,6 @@
 # nucleo-l432kc-quickstart
 
-[![Continuous integration](https://github.com/reneherrero/nucleo-l432kc-quickstart/workflows/Continuous%20Integration/badge.svg)](https://github.com/reneherrero/nucleo-l432kc-quickstart)
+![ci](https://github.com/reneherrero/nucleo-l432kc-quickstart/workflows/ci/badge.svg)
 ![license](https://img.shields.io/badge/license-MIT%20or%20Apache--2-brightgreen)
 
 ## Hardware
