@@ -1,43 +1,95 @@
-#![no_std]
+#![deny(unsafe_code)]
+#![deny(warnings)]
 #![no_main]
+#![no_std]
 
-extern crate cortex_m;
-#[macro_use]
-extern crate cortex_m_rt as rt;
 extern crate panic_semihosting;
-extern crate stm32l4xx_hal as hal;
 
-use hal::prelude::*;
-use hal::delay::Delay;
-use rt::ExceptionFrame;
-use rt::entry;
+use heapless::consts::*;
+use heapless::Vec;
 
-#[entry]
-fn main() -> ! {
-    let cp = cortex_m::Peripherals::take().unwrap();
-    let dp = hal::stm32::Peripherals::take().unwrap();
+use rtic::app;
+use rtic::cyccnt::U32Ext;
 
-    let mut flash = dp.FLASH.constrain(); // .constrain();
-    let mut rcc = dp.RCC.constrain();
+use stm32l4xx_hal::gpio::{gpiob::PB3, Output, PushPull, State};
+use stm32l4xx_hal::prelude::*;
 
-    let clocks = rcc.cfgr
-        .sysclk(8.mhz())
-        // .pclk1(32.mhz())
-        .freeze(&mut flash.acr);
+const BEATS_PER_MIN: u32 = 60;
+const CLK_SPEED_MHZ: u32 = 72;
 
-    let mut gpiob = dp.GPIOB.split(&mut rcc.ahb2);
-    let mut led = gpiob.pb3.into_push_pull_output(&mut gpiob.moder, &mut gpiob.otyper);
+// Cycles per thousandth of beat
+const MILLI_BEAT: u32 = CLK_SPEED_MHZ * 60_000 / BEATS_PER_MIN;
 
-    let mut timer = Delay::new(cp.SYST, clocks);
-    loop {
-        timer.delay_ms(2000 as u32);
-        led.set_high().unwrap();
-        timer.delay_ms(50 as u32);
-        led.set_low().unwrap();
+// We need to pass monotonic = rtic::cyccnt::CYCCNT to use schedule feature fo RTIC
+#[app(device = stm32l4xx_hal::pac, peripherals = true, monotonic = rtic::cyccnt::CYCCNT)]
+const APP: () = {
+    // Global resources (global variables) are defined here and initialized with the
+    // `LateResources` struct in init
+    struct Resources {
+        led: PB3<Output<PushPull>>,
+        intervals: Vec<u32, U6>,
     }
-}
 
-#[exception]
-fn HardFault(ef: &ExceptionFrame) -> ! {
-    panic!("{:#?}", ef);
-}
+    #[init(schedule = [blinker])]
+    fn init(cx: init::Context) -> init::LateResources {
+        // Enable cycle counter
+        let mut core = cx.core;
+        core.DWT.enable_cycle_counter();
+
+        // Setup clocks
+        let mut flash = cx.device.FLASH.constrain();
+        let mut rcc = cx.device.RCC.constrain();
+        let _clocks = rcc.cfgr.sysclk(CLK_SPEED_MHZ.mhz()).freeze(&mut flash.acr);
+
+        // Setup LED
+        let mut gpiob = cx.device.GPIOB.split(&mut rcc.ahb2);
+        let led = gpiob.pb3.into_push_pull_output_with_state(
+            &mut gpiob.moder,
+            &mut gpiob.otyper,
+            State::Low,
+        );
+
+        // Simple heart beat LED on/off sequence
+        let mut intervals: Vec<u32, U6> = Vec::new();
+        intervals.push(MILLI_BEAT * 30).unwrap(); // P Wave
+        intervals.push(MILLI_BEAT * 40).unwrap(); // PR Segment
+        intervals.push(MILLI_BEAT * 120).unwrap(); // QRS Complex
+        intervals.push(MILLI_BEAT * 30).unwrap(); // ST Segment
+        intervals.push(MILLI_BEAT * 60).unwrap(); // T Wave
+        intervals.push(MILLI_BEAT * 720).unwrap(); // Rest
+
+        // Schedule the blinking task
+        cx.schedule.blinker(cx.start, 0).unwrap();
+
+        init::LateResources { led, intervals }
+    }
+
+    #[idle]
+    fn idle(_: idle::Context) -> ! {
+        loop {
+            core::sync::atomic::spin_loop_hint();
+        }
+    }
+
+    #[task(schedule = [blinker], resources = [led, &intervals])]
+    fn blinker(cx: blinker::Context, state: usize) {
+        let led = cx.resources.led;
+        let intervals = cx.resources.intervals;
+        let duration = intervals[state].cycles();
+        let next_state = (state + 1) % intervals.len();
+
+        if state % 2 == 0 {
+            led.set_high().unwrap();
+        } else {
+            led.set_low().unwrap();
+        }
+
+        cx.schedule
+            .blinker(cx.scheduled + duration, next_state)
+            .unwrap();
+    }
+
+    extern "C" {
+        fn EXTI0();
+    }
+};
